@@ -45,8 +45,7 @@ Feel free to explore this repository and adapt the system for your own projects.
 ---
 
 **Author:** PurpleGR  
-**Contact:** [Your Email/Other Contact Info]  
-**YouTube Channel:** [PurpleGR](https://www.youtube.com/@PurpleGR)
+**Contact:** gaelgriffith2003@gmail.com 
 
 ---
 

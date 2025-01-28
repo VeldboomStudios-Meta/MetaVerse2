@@ -44,7 +44,7 @@ Feel free to explore this repository and adapt the system for your own projects.
 
 ---
 
-**Author:** PurpleGR  
+**Author:** PurpleGRStudios  
 **Contact:** gaelgriffith2003@gmail.com 
 
 ---

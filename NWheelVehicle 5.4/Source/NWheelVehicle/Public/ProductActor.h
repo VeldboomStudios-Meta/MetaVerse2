@@ -14,7 +14,7 @@ class NWHEELVEHICLE_API AProductActor : public AActor
 	
 public:
 	// Sets default values for this actor's properties
-	AProductActor();	
+	AProductActor();
 
 
 protected:
@@ -37,6 +37,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Product")
 	float ProductPrice;
 
+
+
 	// Variants map: Variant ID to Variant Name
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Product")
 	TMap<FString, FString> Variants;
@@ -44,13 +46,16 @@ public:
 	// Static Mesh for visualization (for testing purposes)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Product")
 	UStaticMeshComponent* ProductMesh;
-    
+        
 	// Function to set product details from ProductManager
 	UFUNCTION(BlueprintCallable, Category = "Cart")
 	void SetProductDetails();
+
 
 private:
 	FTimerHandle CheckoutTimerHandle;
 	CartManager CartManagerInstance;
 	ProductManager ProductManagerInstance;
+	void ProcessVariant(const TSharedPtr<FJsonValue>& VariantValue);
+
 };

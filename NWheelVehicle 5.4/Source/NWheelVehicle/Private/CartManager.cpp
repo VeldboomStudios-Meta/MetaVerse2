@@ -90,7 +90,6 @@ void CartManager::CreateShopifyCart(TFunction<void()> OnCartCreated)
     Request->ProcessRequest();
 }
 
-
 void CartManager::FetchCartDetails(const FString& CartId, TFunction<void(TArray<FString>)> OnFetchCompleted)
 {
     FString ApiLink = ConfigLoader.GetStorefrontApiLink();
@@ -126,7 +125,6 @@ void CartManager::FetchCartDetails(const FString& CartId, TFunction<void(TArray<
     }
     )"), *CartId);
 
-    // Create HTTP request to fetch cart details
     TSharedRef<IHttpRequest> FetchCartRequest = FHttpModule::Get().CreateRequest();
     FetchCartRequest->SetURL(ApiLink);
     FetchCartRequest->SetVerb("POST");
@@ -134,162 +132,119 @@ void CartManager::FetchCartDetails(const FString& CartId, TFunction<void(TArray<
     FetchCartRequest->SetHeader("X-Shopify-Storefront-Access-Token", AccessToken);
     FetchCartRequest->SetContentAsString(FetchCartQuery);
 
-    // Step 2: Bind the response handling to the request
     FetchCartRequest->OnProcessRequestComplete().BindLambda([this, OnFetchCompleted](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
         {
             TArray<FString> LineItems;
-            TMap<FString, int32> LineItemMap;  // To track existing line items by ID
+            TMap<FString, int32> LineItemMap;
 
-            // Ensure callback is called only once
-            auto CallCallback = [&]() {
-                OnFetchCompleted(LineItems);
-                };
+            auto CallCallback = [&]() { OnFetchCompleted(LineItems); };
 
-            if (bWasSuccessful && Response.IsValid())
-            {
-                FString ResponseBody = Response->GetContentAsString();
-                UE_LOG(LogTemp, Warning, TEXT("Cart Fetched. Response: %s"), *ResponseBody);
-
-                // Extract cart lines from the response
-                TSharedPtr<FJsonObject> JsonObject;
-                TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ResponseBody);
-
-                if (FJsonSerializer::Deserialize(Reader, JsonObject) && JsonObject.IsValid())
-                {
-                    const TSharedPtr<FJsonObject> DataObject = JsonObject->GetObjectField(TEXT("data"));
-                    if (!DataObject.IsValid() || !DataObject->HasField(TEXT("cart")))
-                    {
-                        UE_LOG(LogTemp, Error, TEXT("Cart field is missing in the response."));
-                        CallCallback(); // Call callback with empty results
-                        return;
-                    }
-
-                    const TSharedPtr<FJsonObject> CartObject = DataObject->GetObjectField(TEXT("cart"));
-                    const TArray<TSharedPtr<FJsonValue>> LineEdges = CartObject->GetObjectField(TEXT("lines"))->GetArrayField(TEXT("edges"));
-
-                    if (LineEdges.Num() == 0)
-                    {
-                        UE_LOG(LogTemp, Warning, TEXT("Cart is empty."));
-                        CallCallback(); // Call callback with empty results
-                        return;
-                    }
-
-                    for (int32 Index = 0; Index < LineEdges.Num(); ++Index)
-                    {
-                        const TSharedPtr<FJsonValue> Edge = LineEdges[Index];
-                        if (!Edge.IsValid())
-                        {
-                            UE_LOG(LogTemp, Error, TEXT("Invalid edge at index %d."), Index);
-                            continue;
-                        }
-
-                        const TSharedPtr<FJsonObject> NodeObject = Edge->AsObject()->GetObjectField(TEXT("node"));
-                        if (!NodeObject.IsValid())
-                        {
-                            UE_LOG(LogTemp, Error, TEXT("Node object is invalid for edge at index %d."), Index);
-                            continue;
-                        }
-
-                        FString LineItemId, VariantTitle, ProductTitle, Amount, CurrencyCode;
-                        int32 Quantity = 0;
-
-                        // Extract LineItemId and Quantity
-                        if (!NodeObject->TryGetStringField(TEXT("id"), LineItemId))
-                        {
-                            UE_LOG(LogTemp, Error, TEXT("Missing LineItemId at index %d."), Index);
-                            continue;
-                        }
-
-                        if (!NodeObject->TryGetNumberField(TEXT("quantity"), Quantity))
-                        {
-                            UE_LOG(LogTemp, Error, TEXT("Missing Quantity at index %d."), Index);
-                            continue;
-                        }
-
-                        // Check if this line item is already in the map (exists)
-                        if (LineItemMap.Contains(LineItemId))
-                        {
-                            // Update quantity if it already exists
-                            LineItemMap[LineItemId] += Quantity;
-                            continue;
-                        }
-
-                        // Extract MerchandiseObject and its fields
-                        const TSharedPtr<FJsonObject> MerchandiseObject = NodeObject->GetObjectField(TEXT("merchandise"));
-                        if (!MerchandiseObject.IsValid())
-                        {
-                            UE_LOG(LogTemp, Error, TEXT("Merchandise object is missing at index %d."), Index);
-                            continue;
-                        }
-
-                        // Extract Variant Title
-                        if (!MerchandiseObject->TryGetStringField(TEXT("title"), VariantTitle))
-                        {
-                            UE_LOG(LogTemp, Error, TEXT("Missing VariantTitle at index %d."), Index);
-                            VariantTitle = TEXT("Unknown Variant"); // Fallback
-                        }
-
-                        // Extract Product Title from the product field
-                        const TSharedPtr<FJsonObject> ProductObject = MerchandiseObject->GetObjectField(TEXT("product"));
-                        if (ProductObject.IsValid() && ProductObject->TryGetStringField(TEXT("title"), ProductTitle))
-                        {
-                            UE_LOG(LogTemp, Warning, TEXT("Product Title: %s"), *ProductTitle);
-                        }
-                        else
-                        {
-                            ProductTitle = TEXT("Unknown Product"); // Fallback if the product title is missing
-                            UE_LOG(LogTemp, Error, TEXT("Missing ProductTitle at index %d."), Index);
-                        }
-
-                        // Extract Price Information
-                        const TSharedPtr<FJsonObject> PriceObject = MerchandiseObject->GetObjectField(TEXT("priceV2"));
-                        if (!PriceObject.IsValid() ||
-                            !PriceObject->TryGetStringField(TEXT("amount"), Amount) ||
-                            !PriceObject->TryGetStringField(TEXT("currencyCode"), CurrencyCode))
-                        {
-                            UE_LOG(LogTemp, Error, TEXT("Price information is missing or invalid at index %d."), Index);
-                            continue;
-                        }
-
-                        // Add new LineItem to map and array
-                        LineItems.Add(FString::Printf(TEXT("Line %d: %s (Variant: %s) | ID: %s | Quantity: %d | Price: %s %s"),
-                            Index + 1,
-                            *ProductTitle,   // Product Name
-                            *VariantTitle,   // Variant Name
-                            *LineItemId,
-                            Quantity,
-                            *Amount,
-                            *CurrencyCode));
-
-                        // Track this item in the map
-                        LineItemMap.Add(LineItemId, Quantity);
-                    }
-
-                    UE_LOG(LogTemp, Warning, TEXT("Fetched %d line items."), LineItems.Num());
-                    for (const FString& Item : LineItems)
-                    {
-                        UE_LOG(LogTemp, Warning, TEXT("Line Item: %s"), *Item);
-                    }
-                }
-                else
-                {
-                    UE_LOG(LogTemp, Error, TEXT("Failed to deserialize JSON response."));
-                }
-            }
-            else
+            if (!bWasSuccessful || !Response.IsValid())
             {
                 FString ErrorResponse = Response.IsValid() ? Response->GetContentAsString() : TEXT("No response received.");
                 UE_LOG(LogTemp, Error, TEXT("Failed to fetch cart details. Response: %s"), *ErrorResponse);
+                CallCallback();
+                return;
             }
 
-            // Step 3: Call the callback function with the collected line items
+            FString ResponseBody = Response->GetContentAsString();
+            TSharedPtr<FJsonObject> JsonObject;
+            TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ResponseBody);
+
+            if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+            {
+                UE_LOG(LogTemp, Error, TEXT("Failed to deserialize JSON response."));
+                CallCallback();
+                return;
+            }
+
+            const TSharedPtr<FJsonObject> DataObject = JsonObject->GetObjectField(TEXT("data"));
+            if (!DataObject.IsValid() || !DataObject->HasField(TEXT("cart")))
+            {
+                UE_LOG(LogTemp, Error, TEXT("Cart field is missing in the response."));
+                CallCallback();
+                return;
+            }
+
+            const TSharedPtr<FJsonObject> CartObject = DataObject->GetObjectField(TEXT("cart"));
+            const TArray<TSharedPtr<FJsonValue>> LineEdges = CartObject->GetObjectField(TEXT("lines"))->GetArrayField(TEXT("edges"));
+
+            if (LineEdges.Num() == 0)
+            {
+                CallCallback();
+                return;
+            }
+
+            for (const TSharedPtr<FJsonValue>& Edge : LineEdges)
+            {
+                if (!Edge.IsValid())
+                {
+                    continue;
+                }
+
+                const TSharedPtr<FJsonObject> NodeObject = Edge->AsObject()->GetObjectField(TEXT("node"));
+                if (!NodeObject.IsValid())
+                {
+                    continue;
+                }
+
+                FString LineItemId, VariantTitle, ProductTitle, Amount, CurrencyCode;
+                int32 Quantity = 0;
+
+                if (!NodeObject->TryGetStringField(TEXT("id"), LineItemId) || !NodeObject->TryGetNumberField(TEXT("quantity"), Quantity))
+                {
+                    continue;
+                }
+
+                if (LineItemMap.Contains(LineItemId))
+                {
+                    LineItemMap[LineItemId] += Quantity;
+                    continue;
+                }
+
+                const TSharedPtr<FJsonObject> MerchandiseObject = NodeObject->GetObjectField(TEXT("merchandise"));
+                if (!MerchandiseObject.IsValid())
+                {
+                    continue;
+                }
+
+                if (!MerchandiseObject->TryGetStringField(TEXT("title"), VariantTitle))
+                {
+                    VariantTitle = TEXT("Unknown Variant");
+                }
+
+                const TSharedPtr<FJsonObject> ProductObject = MerchandiseObject->GetObjectField(TEXT("product"));
+                if (ProductObject.IsValid() && ProductObject->TryGetStringField(TEXT("title"), ProductTitle))
+                {
+                    // Product title successfully retrieved
+                }
+                else
+                {
+                    ProductTitle = TEXT("Unknown Product");
+                }
+
+                const TSharedPtr<FJsonObject> PriceObject = MerchandiseObject->GetObjectField(TEXT("priceV2"));
+                if (!PriceObject.IsValid() || !PriceObject->TryGetStringField(TEXT("amount"), Amount) || !PriceObject->TryGetStringField(TEXT("currencyCode"), CurrencyCode))
+                {
+                    continue;
+                }
+
+                LineItems.Add(FString::Printf(TEXT("%s (Variant: %s) | ID: %s | Quantity: %d | Price: %s %s"),
+                    *ProductTitle,   // Product Name
+                    *VariantTitle,   // Variant Name
+                    *LineItemId,
+                    Quantity,
+                    *Amount,
+                    *CurrencyCode));
+
+                LineItemMap.Add(LineItemId, Quantity);
+            }
+
             CallCallback();
         });
 
-    // Send the request
     FetchCartRequest->ProcessRequest();
 }
-
 
 void CartManager::AddProductToCart(const FString& CartId, const FString& VariantId)
 {
@@ -356,21 +311,21 @@ void CartManager::AddProductToCart(const FString& CartId, const FString& Variant
                 return;
             }
 
-            TSharedPtr<FJsonObject> DataObject = JsonObject->GetObjectField(TEXT("data"));
+            const TSharedPtr<FJsonObject> DataObject = JsonObject->GetObjectField(TEXT("data"));
             if (!DataObject.IsValid())
             {
                 UE_LOG(LogTemp, Error, TEXT("Missing 'data' field in response."));
                 return;
             }
 
-            TSharedPtr<FJsonObject> CartLinesAdd = DataObject->GetObjectField(TEXT("cartLinesAdd"));
+            const TSharedPtr<FJsonObject> CartLinesAdd = DataObject->GetObjectField(TEXT("cartLinesAdd"));
             if (!CartLinesAdd.IsValid())
             {
                 UE_LOG(LogTemp, Error, TEXT("Missing 'cartLinesAdd' field in response."));
                 return;
             }
 
-            TSharedPtr<FJsonObject> CartObject = CartLinesAdd->GetObjectField(TEXT("cart"));
+            const TSharedPtr<FJsonObject> CartObject = CartLinesAdd->GetObjectField(TEXT("cart"));
             if (!CartObject.IsValid())
             {
                 UE_LOG(LogTemp, Error, TEXT("Missing 'cart' field in response."));
@@ -387,49 +342,42 @@ void CartManager::AddProductToCart(const FString& CartId, const FString& Variant
     Request->ProcessRequest();
 }
 
-
-    void CartManager::RemoveFromCart(const FString& CartId, const FString& LineItemId)
+void CartManager::RemoveFromCart(const FString& CartId, const FString& LineItemId)
 {
-    FString ApiLink = ConfigLoader.GetStorefrontApiLink();
-    FString AccessToken = ConfigLoader.GetStorefrontAccessToken();
-
     if (CartId.IsEmpty() || LineItemId.IsEmpty())
     {
         UE_LOG(LogTemp, Error, TEXT("Invalid Cart ID or Line Item ID. Cannot remove product from cart."));
         return;
     }
 
-    // Define the GraphQL mutation to remove a line item from the cart
-    FString GraphQLQuery = FString::Printf(TEXT(R"(
-        {
-            "query": "mutation { cartLinesRemove(cartId: \"%s\", lineIds: [\"%s\"]) { cart { id } } }"
-        }
-    )"), *CartId, *LineItemId);
+    FString GraphQLQuery = FString::Printf(TEXT(R"({"query":"mutation{cartLinesRemove(cartId:\"%s\",lineIds:[\"%s\"]){cart{id}}}"})"), *CartId, *LineItemId);
 
-    // Create an HTTP request
     TSharedRef<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
-    Request->SetURL(ApiLink);
+    Request->SetURL(ConfigLoader.GetStorefrontApiLink());
     Request->SetVerb("POST");
     Request->SetHeader("Content-Type", "application/json");
-    Request->SetHeader("X-Shopify-Storefront-Access-Token", AccessToken);
+    Request->SetHeader("X-Shopify-Storefront-Access-Token", ConfigLoader.GetStorefrontAccessToken());
     Request->SetContentAsString(GraphQLQuery);
 
-    // Set the callback for when the request completes
     Request->OnProcessRequestComplete().BindLambda([LineItemId](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
         {
-            if (bWasSuccessful && Response.IsValid())
+            if (!bWasSuccessful || !Response.IsValid())
             {
-                FString ResponseBody = Response->GetContentAsString();
-              //  UE_LOG(LogTemp, Warning, TEXT("Product with LineItemId: %s removed from Shopify Cart. Response: %s"), *LineItemId, *ResponseBody);
+                UE_LOG(LogTemp, Error, TEXT("Failed to remove product with LineItemId: %s. No valid response."), *LineItemId);
+                return;
+            }
 
-            }
-            else
+            FString ResponseBody = Response->GetContentAsString();
+            if (Response->GetResponseCode() != 200)
             {
-                UE_LOG(LogTemp, Error, TEXT("Failed to remove product with LineItemId: %s from Shopify cart. Response: %s"), *LineItemId, *Response->GetContentAsString());
+                UE_LOG(LogTemp, Error, TEXT("Failed to remove product with LineItemId: %s. Response: %s"), *LineItemId, *ResponseBody);
+                return;
             }
+
+            UE_LOG(LogTemp, Log, TEXT("Product with LineItemId: %s removed successfully. Response: %s"), *LineItemId, *ResponseBody);
         });
 
-    // Send the request
+    UE_LOG(LogTemp, Log, TEXT("Removing product with LineItemId: %s from cart."), *LineItemId);
     Request->ProcessRequest();
 }
 

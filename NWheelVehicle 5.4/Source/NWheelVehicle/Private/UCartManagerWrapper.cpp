@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "UCartManagerWrapper.h"
-//#include "CartManager.h"
+#include "CartManager.h"
 
 UCartManagerWrapper::UCartManagerWrapper()
 {
@@ -14,10 +14,10 @@ void UCartManagerWrapper::AddProductToCart(const FString& CartId, const FString&
 
 void UCartManagerWrapper::CreateCheckout(const FString& CartId)
 {
-    //CartManager::Get().CreateCheckout(CartId);
+    CartManager::Get().CreateCheckout(CartId);
 }
 
-/*FString UCartManagerWrapper::GetStoredCartId()
+FString UCartManagerWrapper::GetStoredCartId()
 {
     // Check the cart ID through the singleton instance
     if (CartManager::Get().GetStoredCartId().IsEmpty())
@@ -78,9 +78,9 @@ void UCartManagerWrapper::FetchCartDetails(const FString& CartId)
                 LineItems.Add(ProductDetails);
             }
         });
-}*/
+}
 
 void UCartManagerWrapper::RemoveFromCart(const FString& CartId, const FString& LineItemId)
 {
-    //CartManager::Get().RemoveFromCart(CartId, LineItemId);
+    CartManager::Get().RemoveFromCart(CartId, LineItemId);
 }

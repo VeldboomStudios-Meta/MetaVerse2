@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-//#include "CartManager.h"
+#include "CartManager.h"
 #include "Delegates/Delegate.h"
 #include "UCartManagerWrapper.generated.h"
 
@@ -29,14 +29,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Cart")
 	void CreateCheckout(const FString& CartId); 
 
-	//UFUNCTION(BlueprintCallable, Category = "Cart")
-	//FString GetStoredCartId();
+	UFUNCTION(BlueprintCallable, Category = "Cart")
+	FString GetStoredCartId();
 
-	//UFUNCTION(BlueprintCallable, Category = "Cart")
-	//void CreateCart();
+	UFUNCTION(BlueprintCallable, Category = "Cart")
+	void CreateCart();
 
-	//UFUNCTION(BlueprintCallable, Category = "Cart")
-	//void FetchCartDetails(const FString& CartId);
+	UFUNCTION(BlueprintCallable, Category = "Cart")
+	void FetchCartDetails(const FString& CartId);
 
 	UPROPERTY(BlueprintReadWrite, Category = "Cart")
 	TArray<FString> LineItems;

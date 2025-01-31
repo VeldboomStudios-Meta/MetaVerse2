@@ -5,7 +5,7 @@
 #include "Interfaces/IHttpResponse.h"
 #include "Json.h"
 #include "JsonUtilities.h"
-//#include "ProductActor.h"
+#include "ProductActor.h"
 
 ProductManager::ProductManager()
     : ConfigLoader(ShopConfigLoader::Get())
@@ -57,7 +57,7 @@ void ProductManager::ProcessProductsResponse(FHttpResponsePtr Response, TFunctio
     if (FJsonSerializer::Deserialize(Reader, JsonObject) && JsonObject.IsValid())
     {
         // Check if "products" exists and is an array
-        if (JsonObject->HasTypedField<EJson::Array>(TEXT("products")))
+         if (JsonObject->HasTypedField<EJson::Array>(TEXT("products")))
         {
             TArray<TSharedPtr<FJsonValue>> ProductsArray = JsonObject->GetArrayField(TEXT("products"));
 

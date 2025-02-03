@@ -26,7 +26,7 @@ void ShopConfigLoader::LoadShopConfig()
     }
 
     // Use FPaths::ProjectDir() to dynamically construct the absolute path to the JSON file
-    FString FilePath = FPaths::ProjectDir() + TEXT("Intermediate/ProjectFiles/ShopConfig.json");
+    FString FilePath = FPaths::ProjectDir() + TEXT("Config/ShopConfig.json");
     UE_LOG(LogTemp, Warning, TEXT("Attempting to load JSON file from: %s"), *FilePath);
 
     FString JsonString;

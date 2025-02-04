@@ -9,7 +9,7 @@ UCartManagerWrapper::UCartManagerWrapper()
 
 void UCartManagerWrapper::AddProductToCart(const FString& CartId, const FString& VariantId)
 {
-    //CartManager::Get().AddProductToCart(CartId, VariantId);
+    CartManager::Get().AddProductToCart(CartId, VariantId);
 }
 
 void UCartManagerWrapper::CreateCheckout(const FString& CartId)

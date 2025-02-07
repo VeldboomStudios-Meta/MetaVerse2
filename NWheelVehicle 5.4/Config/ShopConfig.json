@@ -1,7 +1,0 @@
-{
-  "api_key": "1c4e99e0de4b72fefbda3935febd2644",
-  "admin_access_token": "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",
-  "storefront_access_token": "55a8247ea920e1bdfcb5931637c8ee3c",
-  "storefront_api_link": "https://shop.veldboomstudios.com/api/2024-01/graphql.json",
-  "admin_api_link": "https://shop.veldboomstudios.com/admin/api/2024-01"
-}

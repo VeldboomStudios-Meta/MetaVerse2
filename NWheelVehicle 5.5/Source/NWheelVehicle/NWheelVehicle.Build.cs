@@ -8,7 +8,7 @@ public class NWheelVehicle : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore","Json","JsonUtilities", "HTTP" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "HTTP", "Json", "UMG", "JsonUtilities", "WebBrowser", "Slate", "SlateCore"  });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 

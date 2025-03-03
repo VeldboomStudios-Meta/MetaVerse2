@@ -119,6 +119,15 @@ public:
 
 
 private:
+
+    // Helper function declarations
+    static FString BuildGraphQLPayload(const FString& Query, TSharedPtr<FJsonObject> Variables);
+    static TSharedRef<IHttpRequest> SetupHttpRequest(const FString& ApiLink, const FString& AccessToken, const FString& RequestBody);
+    static TSharedPtr<FJsonObject> ParseGraphQLResponse(const FString& ResponseStr);
+    static void HandleHttpResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful,
+        TFunction<void(TSharedPtr<FJsonObject> DataObject)> OnSuccess,
+        TFunction<void()> OnFailure);
+
     ShopConfigLoader& ConfigLoader;
     FString StoredCartId;
     static UCartManager* Instance;

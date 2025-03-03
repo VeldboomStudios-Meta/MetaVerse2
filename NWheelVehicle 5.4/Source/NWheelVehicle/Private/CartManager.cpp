@@ -12,7 +12,7 @@
 UCartManager::UCartManager()
     : ConfigLoader(ShopConfigLoader::Get())
 {
-    UE_LOG(LogTemp, Log, TEXT("UCartManager instance created."));
+
 }
 
 UCartManager& UCartManager::Get()
@@ -23,6 +23,18 @@ UCartManager& UCartManager::Get()
 
 UCartManager::~UCartManager()
 {
+}
+
+void UCartManager::CreateShopifyCart(FOnCartCreated OnCartCreated)
+{ 
+    if (!StoredCartId.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("A cart already exists with ID: %s. Cannot create a new cart."), *StoredCartId);
+        return;
+    }
+
+    FString ApiLink = ConfigLoader.GetStorefrontApiLink();
+    FString AccessToken = ConfigLoader.GetStorefrontAccessToken();
 }
 
 void UCartManager::AddItemToCart(FString VariantId, int32 Quantity, FOnItemAdded OnItemAdded)

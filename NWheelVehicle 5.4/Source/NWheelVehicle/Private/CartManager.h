@@ -129,8 +129,10 @@ private:
         TFunction<void(TSharedPtr<FJsonObject> DataObject)> OnSuccess,
         TFunction<void()> OnFailure);
 
-    // Member variables
-    ShopConfigLoader& ConfigLoader;
+
+    
+    
+    ShopConfigLoader* ConfigLoader;
     FString StoredCartId;
     static UCartManager* Instance; // Singleton instance
 };

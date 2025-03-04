@@ -13,13 +13,15 @@ UCartManager& UCartManager::Get()
     return SingletonInstance;
 }
 
+// Assuming ShopConfigLoader::Get() returns a reference
 UCartManager::UCartManager()
-    : ConfigLoader(ShopConfigLoader::Get())  // Initialize with reference from static method
+    : ConfigLoader(&ShopConfigLoader::Get())  // Get a pointer by using the address-of operator
 {
 }
 
 UCartManager::~UCartManager()
 {
+    //
 }
 
 // Helper Functions
@@ -117,8 +119,8 @@ void UCartManager::CreateShopifyCart(FOnCartCreated OnCartCreated)
         return;
     }
 
-    FString ApiLink = ConfigLoader.GetStorefrontApiLink();
-    FString AccessToken = ConfigLoader.GetStorefrontAccessToken();
+    FString ApiLink = ConfigLoader->GetStorefrontApiLink();
+    FString AccessToken = ConfigLoader->GetStorefrontAccessToken();
 
     FString Mutation = TEXT(R"(
         mutation cartCreate($cartInput: CartCreateInput!) {
@@ -197,8 +199,8 @@ void UCartManager::AddItemToCart(FString VariantId, int32 Quantity, FOnItemAdded
         return;
     }
 
-    FString ApiLink = ConfigLoader.GetStorefrontApiLink();
-    FString AccessToken = ConfigLoader.GetStorefrontAccessToken();
+    FString ApiLink = ConfigLoader->GetStorefrontApiLink();
+    FString AccessToken = ConfigLoader->GetStorefrontAccessToken();
 
     FString Mutation = TEXT(R"(
         mutation cartLinesAdd($cartId: ID!, $lines: [CartLineInput!]!) {

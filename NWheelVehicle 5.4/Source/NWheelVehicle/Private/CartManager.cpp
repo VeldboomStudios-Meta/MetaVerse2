@@ -6,6 +6,7 @@
 #include "Json.h"
 #include "JsonUtilities.h"
 
+
 // Revised Singleton Accessor (Meyers' Singleton)
 UCartManager& UCartManager::Get()
 {
@@ -13,16 +14,23 @@ UCartManager& UCartManager::Get()
     return SingletonInstance;
 }
 
-// Assuming ShopConfigLoader::Get() returns a reference
+// Constructor initialization
 UCartManager::UCartManager()
     : ConfigLoader(&ShopConfigLoader::Get())  // Get a pointer by using the address-of operator
 {
+    // If ConfigLoader is null, handle it (Optional for safety)
+    if (!ConfigLoader)
+    {
+        UE_LOG(LogTemp, Error, TEXT("ConfigLoader is not initialized correctly."));
+    }
 }
 
+// Destructor (no need to handle Singleton clean-up as Meyers' Singleton takes care of it)
 UCartManager::~UCartManager()
 {
-    //
+    // Optional cleanup if necessary
 }
+
 
 // Helper Functions
 

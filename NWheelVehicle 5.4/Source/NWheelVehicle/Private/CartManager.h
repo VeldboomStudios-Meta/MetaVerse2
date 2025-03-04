@@ -120,6 +120,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "CartManager")
     void HandleErrors(FString ErrorMessage);
 
+    UFUNCTION(BlueprintCallable, Category = "CartManager")
+    static UCartManager* GetCartManagerInstance();
+
+
 private:
     // Helper function declarations
     static FString BuildGraphQLPayload(const FString& Query, TSharedPtr<FJsonObject> Variables);

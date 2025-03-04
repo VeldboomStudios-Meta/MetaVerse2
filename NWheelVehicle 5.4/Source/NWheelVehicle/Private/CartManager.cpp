@@ -350,3 +350,8 @@ void UCartManager::HandleErrors(FString ErrorMessage)
 {
     UE_LOG(LogTemp, Error, TEXT("Error: %s"), *ErrorMessage);
 }
+
+UCartManager* UCartManager::GetCartManagerInstance()
+{
+    return &Get();
+}

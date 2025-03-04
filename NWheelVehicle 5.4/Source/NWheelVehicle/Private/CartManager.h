@@ -130,7 +130,7 @@ private:
         TFunction<void()> OnFailure);
 
     // Member variables
-    ShopConfigLoader& ConfigLoader; // Ensure ShopConfigLoader is properly included
+    ShopConfigLoader& ConfigLoader;
     FString StoredCartId;
     static UCartManager* Instance; // Singleton instance
 };

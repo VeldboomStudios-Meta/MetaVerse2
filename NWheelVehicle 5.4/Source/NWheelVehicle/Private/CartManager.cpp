@@ -1,15 +1,10 @@
 #include "CartManager.h"
 #include "Http.h"
+#include "HttpModule.h"
 #include "ShopConfigLoader.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Json.h"
 #include "JsonUtilities.h"
-
-UCartManager::UCartManager()
-    : ConfigLoader(ShopConfigLoader::Get()), StoredCartId(FString())
-{
-    // No need to initialize a static pointer anymore
-}
 
 // Revised Singleton Accessor (Meyers' Singleton)
 UCartManager& UCartManager::Get()
@@ -18,10 +13,13 @@ UCartManager& UCartManager::Get()
     return SingletonInstance;
 }
 
-// Destructor (no longer needs to reset a static pointer)
+UCartManager::UCartManager()
+    : ConfigLoader(ShopConfigLoader::Get())  // Initialize with reference from static method
+{
+}
+
 UCartManager::~UCartManager()
 {
-    // No code needed here
 }
 
 // Helper Functions

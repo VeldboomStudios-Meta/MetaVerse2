@@ -1,5 +1,3 @@
-// Copyright VeldboomStudios 2025
-
 #include "CartManager.h"
 #include "Http.h"
 #include "ShopConfigLoader.h"
@@ -7,30 +5,36 @@
 #include "Json.h"
 #include "JsonUtilities.h"
 
-
-// Constructor
 UCartManager::UCartManager()
-    : ConfigLoader(ShopConfigLoader::Get())
+    : ConfigLoader(ShopConfigLoader::Get()), StoredCartId(FString())
 {
-
+    // No need to initialize a static pointer anymore
 }
 
+// Revised Singleton Accessor (Meyers' Singleton)
 UCartManager& UCartManager::Get()
 {
-    static UCartManager Instance;
-    return Instance;
+    static UCartManager SingletonInstance;
+    return SingletonInstance;
 }
 
+// Destructor (no longer needs to reset a static pointer)
 UCartManager::~UCartManager()
 {
+    // No code needed here
 }
 
 // Helper Functions
 
-FString UCartManager::BuildGraphQLPayload(const FString& Query, TSharedPtr<FJsonObject> Variables){
+FString UCartManager::BuildGraphQLPayload(const FString& Query, TSharedPtr<FJsonObject> Variables)
+{
     TSharedPtr<FJsonObject> RequestJson = MakeShareable(new FJsonObject());
     RequestJson->SetStringField(TEXT("query"), Query);
-    RequestJson->SetObjectField(TEXT("variables"), Variables);
+
+    if (Variables.IsValid())
+    {
+        RequestJson->SetObjectField(TEXT("variables"), Variables);
+    }
 
     FString RequestBody;
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&RequestBody);
@@ -39,8 +43,9 @@ FString UCartManager::BuildGraphQLPayload(const FString& Query, TSharedPtr<FJson
     return RequestBody;
 }
 
-TSharedRef<IHttpRequest> UCartManager::SetupHttpRequest(const FString& ApiLink, const FString& AccessToken, const FString& RequestBody){
-    TSharedRef<IHttpRequest> HttpRequest = FHttpModule::Get().CreateRequest();
+TSharedRef<IHttpRequest, ESPMode::ThreadSafe> UCartManager::SetupHttpRequest(const FString& ApiLink, const FString& AccessToken, const FString& RequestBody)
+{
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
     HttpRequest->SetURL(ApiLink);
     HttpRequest->SetVerb(TEXT("POST"));
     HttpRequest->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
@@ -49,12 +54,13 @@ TSharedRef<IHttpRequest> UCartManager::SetupHttpRequest(const FString& ApiLink, 
     return HttpRequest;
 }
 
-TSharedPtr<FJsonObject> UCartManager::ParseGraphQLResponse(const FString& ResponseStr){
+TSharedPtr<FJsonObject> UCartManager::ParseGraphQLResponse(const FString& ResponseStr)
+{
     TSharedPtr<FJsonObject> JsonResponse;
     TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ResponseStr);
+
     if (FJsonSerializer::Deserialize(Reader, JsonResponse) && JsonResponse.IsValid())
     {
-        // Log any top-level errors
         if (JsonResponse->HasField(TEXT("errors")))
         {
             TArray<TSharedPtr<FJsonValue>> Errors = JsonResponse->GetArrayField(TEXT("errors"));
@@ -67,12 +73,12 @@ TSharedPtr<FJsonObject> UCartManager::ParseGraphQLResponse(const FString& Respon
             return nullptr;
         }
 
-        // Return the "data" object if it exists
         if (JsonResponse->HasField(TEXT("data")))
         {
             return JsonResponse->GetObjectField(TEXT("data"));
         }
     }
+
     return nullptr;
 }
 
@@ -102,7 +108,6 @@ void UCartManager::HandleHttpResponse(FHttpRequestPtr Request, FHttpResponsePtr 
     }
 }
 
-
 // Main Function Implementations
 
 void UCartManager::CreateShopifyCart(FOnCartCreated OnCartCreated)
@@ -117,28 +122,14 @@ void UCartManager::CreateShopifyCart(FOnCartCreated OnCartCreated)
     FString ApiLink = ConfigLoader.GetStorefrontApiLink();
     FString AccessToken = ConfigLoader.GetStorefrontAccessToken();
 
-    // Define the GraphQL mutation string
     FString Mutation = TEXT(R"(
         mutation cartCreate($cartInput: CartCreateInput!) {
           cartCreate(input: $cartInput) {
             cart {
               id
               checkoutUrl
-              lines(first: 5) {
-                edges {
-                  node {
-                    merchandise {
-                      ... on ProductVariant {
-                        title
-                      }
-                    }
-                    quantity
-                  }
-                }
-              }
             }
-            checkoutUserErrors {
-              code
+            userErrors {
               field
               message
             }
@@ -146,36 +137,30 @@ void UCartManager::CreateShopifyCart(FOnCartCreated OnCartCreated)
         }
     )");
 
-    // Prepare variables for the mutation
     TSharedPtr<FJsonObject> VariablesJson = MakeShareable(new FJsonObject());
     TSharedPtr<FJsonObject> CartInputJson = MakeShareable(new FJsonObject());
-    // Populate CartInputJson as needed, e.g. initial empty cart state, etc.
     VariablesJson->SetObjectField(TEXT("cartInput"), CartInputJson);
 
-    // Build the request body
     FString RequestBody = BuildGraphQLPayload(Mutation, VariablesJson);
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = SetupHttpRequest(ApiLink, AccessToken, RequestBody);
 
-    // Set up the HTTP request
-    TSharedRef<IHttpRequest> HttpRequest = SetupHttpRequest(ApiLink, AccessToken, RequestBody);
-
-    // Bind the HTTP response handling lambda
     HttpRequest->OnProcessRequestComplete().BindLambda([this, OnCartCreated](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
         {
             HandleHttpResponse(Request, Response, bWasSuccessful,
-            // OnSuccess lambda
                 [this, OnCartCreated](TSharedPtr<FJsonObject> DataObject)
                 {
                     TSharedPtr<FJsonObject> CartCreateObj = DataObject->GetObjectField(TEXT("cartCreate"));
-                    if (CartCreateObj->HasField(TEXT("checkoutUserErrors")))
+
+                    if (CartCreateObj->HasField(TEXT("userErrors")))
                     {
-                        TArray<TSharedPtr<FJsonValue>> CheckoutErrors = CartCreateObj->GetArrayField(TEXT("checkoutUserErrors"));
-                        if (CheckoutErrors.Num() > 0)
+                        TArray<TSharedPtr<FJsonValue>> UserErrors = CartCreateObj->GetArrayField(TEXT("userErrors"));
+                        if (UserErrors.Num() > 0)
                         {
-                            for (auto& ErrorValue : CheckoutErrors)
+                            for (auto& ErrorValue : UserErrors)
                             {
                                 TSharedPtr<FJsonObject> ErrorObj = ErrorValue->AsObject();
                                 FString ErrorMsg = ErrorObj->GetStringField(TEXT("message"));
-                                UE_LOG(LogTemp, Error, TEXT("Checkout Error: %s"), *ErrorMsg);
+                                UE_LOG(LogTemp, Error, TEXT("User Error: %s"), *ErrorMsg);
                             }
                             OnCartCreated.ExecuteIfBound();
                             return;
@@ -195,66 +180,173 @@ void UCartManager::CreateShopifyCart(FOnCartCreated OnCartCreated)
                     }
                     OnCartCreated.ExecuteIfBound();
                 },
-                // OnFailure lambda
                 [OnCartCreated]()
                 {
                     OnCartCreated.ExecuteIfBound();
                 }
-    );
+            );
         });
 
-    // Execute the HTTP request
     HttpRequest->ProcessRequest();
 }
 
 void UCartManager::AddItemToCart(FString VariantId, int32 Quantity, FOnItemAdded OnItemAdded)
 {
-    // Function definition: Add a product variant to the cart
+    if (StoredCartId.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("No active cart found. Please create a cart first."));
+        OnItemAdded.ExecuteIfBound(false);
+        return;
+    }
+
+    FString ApiLink = ConfigLoader.GetStorefrontApiLink();
+    FString AccessToken = ConfigLoader.GetStorefrontAccessToken();
+
+    FString Mutation = TEXT(R"(
+        mutation cartLinesAdd($cartId: ID!, $lines: [CartLineInput!]!) {
+          cartLinesAdd(cartId: $cartId, lines: $lines) {
+            cart {
+              id
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+    )");
+
+    TSharedPtr<FJsonObject> VariablesJson = MakeShareable(new FJsonObject());
+    VariablesJson->SetStringField(TEXT("cartId"), StoredCartId);
+
+    TArray<TSharedPtr<FJsonValue>> LinesArray;
+    TSharedPtr<FJsonObject> LineInput = MakeShareable(new FJsonObject());
+    LineInput->SetStringField(TEXT("merchandiseId"), VariantId);
+    LineInput->SetNumberField(TEXT("quantity"), Quantity);
+    LinesArray.Add(MakeShareable(new FJsonValueObject(LineInput)));
+
+    VariablesJson->SetArrayField(TEXT("lines"), LinesArray);
+
+    FString RequestBody = BuildGraphQLPayload(Mutation, VariablesJson);
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = SetupHttpRequest(ApiLink, AccessToken, RequestBody);
+
+    HttpRequest->OnProcessRequestComplete().BindLambda([OnItemAdded](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
+        {
+            HandleHttpResponse(Request, Response, bWasSuccessful,
+                [OnItemAdded](TSharedPtr<FJsonObject> DataObject)
+                {
+                    TSharedPtr<FJsonObject> CartLinesAddObj = DataObject->GetObjectField(TEXT("cartLinesAdd"));
+
+                    if (CartLinesAddObj->HasField(TEXT("userErrors")))
+                    {
+                        TArray<TSharedPtr<FJsonValue>> UserErrors = CartLinesAddObj->GetArrayField(TEXT("userErrors"));
+                        if (UserErrors.Num() > 0)
+                        {
+                            for (auto& ErrorValue : UserErrors)
+                            {
+                                TSharedPtr<FJsonObject> ErrorObj = ErrorValue->AsObject();
+                                FString ErrorMsg = ErrorObj->GetStringField(TEXT("message"));
+                                UE_LOG(LogTemp, Error, TEXT("User Error: %s"), *ErrorMsg);
+                            }
+                            OnItemAdded.ExecuteIfBound(false);
+                            return;
+                        }
+                    }
+
+                    OnItemAdded.ExecuteIfBound(true);
+                },
+                [OnItemAdded]()
+                {
+                    OnItemAdded.ExecuteIfBound(false);
+                }
+            );
+        });
+
+    HttpRequest->ProcessRequest();
 }
 
 void UCartManager::UpdateCartItem(FString LineId, int32 NewQuantity, FOnItemUpdated OnItemUpdated)
 {
-    // Function definition: Update the quantity of an item in the cart
+    if (StoredCartId.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("No active cart found. Please create a cart first."));
+        OnItemUpdated.ExecuteIfBound(false);
+        return;
+    }
+
+    // Placeholder implementation: Update logic here
+    OnItemUpdated.ExecuteIfBound(false);
 }
 
 void UCartManager::RemoveItemFromCart(FString LineId, FOnItemRemoved OnItemRemoved)
 {
-    // Function definition: Remove an item from the cart
+    if (StoredCartId.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("No active cart found. Please create a cart first."));
+        OnItemRemoved.ExecuteIfBound(false);
+        return;
+    }
+
+    // Placeholder implementation: Remove logic here
+    OnItemRemoved.ExecuteIfBound(false);
 }
 
 void UCartManager::GetCartContents(FOnGetCartContents OnCartContentLoaded)
 {
-    // Function definition: Retrieve the current contents of the cart
+    if (StoredCartId.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("No active cart found. Please create a cart first."));
+        OnCartContentLoaded.ExecuteIfBound(TArray<FString>());
+        return;
+    }
+
+    // Placeholder implementation: Retrieve cart contents logic here
+    OnCartContentLoaded.ExecuteIfBound(TArray<FString>());
 }
 
 void UCartManager::ProceedToCheckout(FOnProceedToCheckout OnCheckoutUrlReady)
 {
-    // Function definition: Retrieve the checkout URL and proceed to checkout
+    if (StoredCartId.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("No active cart found. Please create a cart first."));
+        OnCheckoutUrlReady.ExecuteIfBound(FString());
+        return;
+    }
+
+    // Placeholder implementation: Retrieve checkout URL logic here
+    OnCheckoutUrlReady.ExecuteIfBound(FString());
 }
 
 void UCartManager::ClearCart(FOnCartCleared OnCartCleared)
 {
-    // Function definition: Clear all items from the cart
+    if (StoredCartId.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("No active cart found. Please create a cart first."));
+        OnCartCleared.ExecuteIfBound(false);
+        return;
+    }
+
+    // Placeholder implementation: Clear cart logic here
+    OnCartCleared.ExecuteIfBound(false);
 }
 
 bool UCartManager::IsCartEmpty()
 {
-    // Function definition: Check if the cart is empty
-    return false; // Placeholder return value
+    // Placeholder implementation: Check if cart is empty
+    return StoredCartId.IsEmpty();
 }
 
 FString UCartManager::GetStoredCartId()
 {
-    // Function definition: Retrieve the stored cart ID
-    return FString(); // Placeholder return value
+    return StoredCartId;
 }
 
 void UCartManager::SetStoredCartId(FString CartId)
 {
-    // Function definition: Set the stored cart ID
+    StoredCartId = CartId;
 }
 
 void UCartManager::HandleErrors(FString ErrorMessage)
 {
-    // Function definition: Handle errors during API requests
+    UE_LOG(LogTemp, Error, TEXT("Error: %s"), *ErrorMessage);
 }

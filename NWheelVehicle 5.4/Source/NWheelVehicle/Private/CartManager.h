@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-#include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h" // For Blueprint compatibility
 #include "Delegates/Delegate.h" // Include delegates for callbacks
+#include "Interfaces/IHttpRequest.h" // For IHttpRequest and FHttpRequestPtr
+#include "Http.h" // For HTTP functionality
+#include "Templates/Function.h" // For TFunction
+#include "ShopConfigLoader.h" // For ShopConfigLoader
 #include "CartManager.generated.h"
 
 // Custom delegate declarations for Blueprint compatibility
@@ -24,7 +26,7 @@ DECLARE_DYNAMIC_DELEGATE_OneParam(FOnProceedToCheckout, FString, CheckoutUrl);
  * @brief Manages interactions with Shopify's Storefront API for cart operations.
  */
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
-class NWHEELVEHICLE_API UCartManager : public UBlueprintFunctionLibrary
+class NWHEELVEHICLE_API UCartManager : public UObject // Changed from UBlueprintFunctionLibrary to UObject
 {
     GENERATED_BODY()
 
@@ -33,6 +35,7 @@ public:
     UCartManager();
     ~UCartManager();
 
+    // Singleton instance accessor
     static UCartManager& Get();
 
     /**
@@ -117,18 +120,17 @@ public:
     UFUNCTION(BlueprintCallable, Category = "CartManager")
     void HandleErrors(FString ErrorMessage);
 
-
 private:
-
     // Helper function declarations
     static FString BuildGraphQLPayload(const FString& Query, TSharedPtr<FJsonObject> Variables);
-    static TSharedRef<IHttpRequest> SetupHttpRequest(const FString& ApiLink, const FString& AccessToken, const FString& RequestBody);
+    static TSharedRef<IHttpRequest, ESPMode::ThreadSafe> SetupHttpRequest(const FString& ApiLink, const FString& AccessToken, const FString& RequestBody);
     static TSharedPtr<FJsonObject> ParseGraphQLResponse(const FString& ResponseStr);
     static void HandleHttpResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful,
         TFunction<void(TSharedPtr<FJsonObject> DataObject)> OnSuccess,
         TFunction<void()> OnFailure);
 
-    ShopConfigLoader& ConfigLoader;
+    // Member variables
+    ShopConfigLoader& ConfigLoader; // Ensure ShopConfigLoader is properly included
     FString StoredCartId;
-    static UCartManager* Instance;
+    static UCartManager* Instance; // Singleton instance
 };

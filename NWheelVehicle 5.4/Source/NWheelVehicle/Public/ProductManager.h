@@ -5,13 +5,14 @@
 #include "Interfaces/IHttpResponse.h"
 #include "Http.h"
 #include "ShopConfigLoader.h"
-#include "ProductActor.h" // ✅ Include the actual ProductActor class
+#include "ProductActor.h"
 
 #include "ProductManager.generated.h"
 
-// ✅ Delegates
+
 DECLARE_DYNAMIC_DELEGATE(FOnProductsFetched);
-DECLARE_DYNAMIC_DELEGATE_OneParam(FOnProductDetailsFetched, bool, bSuccess);
+DECLARE_DYNAMIC_DELEGATE_OneParam(FOnProductDetailsFetched, AProductActor*, ProductActor);
+
 
 UCLASS(BlueprintType)
 class NWHEELVEHICLE_API UProductManager : public UObject

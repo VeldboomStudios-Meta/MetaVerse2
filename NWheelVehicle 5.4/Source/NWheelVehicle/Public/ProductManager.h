@@ -1,42 +1,49 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "HttpModule.h"  // For HTTP requests
-#include "Interfaces/IHttpResponse.h"  // For handling HTTP responses
-#include "Json.h"  // For JSON parsing
-#include "JsonUtilities.h"  // For JSON utilities
-#include "ShopConfigLoader.h"  // Include the ShopConfigLoader
+#include "UObject/NoExportTypes.h"
+#include "Interfaces/IHttpResponse.h"
+#include "Http.h"
+#include "ShopConfigLoader.h"
+#include "ProductActor.h" // ✅ Include the actual ProductActor class
 
-class AProductActor;
-// Regular C++ class without Unreal-specific macros
-class ProductManager
+#include "ProductManager.generated.h"
+
+// ✅ Delegates
+DECLARE_DYNAMIC_DELEGATE(FOnProductsFetched);
+DECLARE_DYNAMIC_DELEGATE_OneParam(FOnProductDetailsFetched, bool, bSuccess);
+
+UCLASS(BlueprintType)
+class NWHEELVEHICLE_API UProductManager : public UObject
 {
+    GENERATED_BODY()
+
 public:
-    // Constructor
-    ProductManager();
+    UProductManager();
+    virtual ~UProductManager();
 
-    // Function to get all products from the Shopify store using Admin API
-    void GetAllProducts(TFunction<void()> OnProductsFetched);
+    UFUNCTION(BlueprintCallable, Category = "ProductManager")
+    static UProductManager* GetProductManagerInstance();
 
-    // Function to get the product details by ProductId
-    TSharedPtr<FJsonObject> GetProductDetailsById(const FString& ProductId);
-    // Function to set product details in the ProductActor by the ProductId
-    void SetProductDetailsById(AProductActor* ProductActor);
+    UFUNCTION(BlueprintCallable, Category = "ProductManager")
+    void GetAllProducts(FOnProductsFetched OnProductsFetched);
 
+    UFUNCTION(BlueprintCallable, Category = "ProductManager")
+    FString GetProductDetailsById(const FString& ProductId);
+
+    UFUNCTION(BlueprintCallable, Category = "ProductManager")
+    void SetProductDetailsById(AProductActor* ProductActor, const FString& ProductId, FOnProductDetailsFetched OnProductDetailsFetched);
+
+    UFUNCTION(BlueprintCallable, Category = "ProductManager")
     bool IsProductsFetched() const;
+
 private:
+    static UProductManager* Instance;
 
+    void ProcessProductsResponse(FHttpResponsePtr Response, FOnProductsFetched OnProductsFetched);
+    void ApplyProductDetailsToActor(AProductActor* ProductActor, TSharedPtr<FJsonObject> ProductData, FOnProductDetailsFetched OnProductDetailsFetched);
 
-    // Helper function to process product data after fetching it
-    void ProcessProductsResponse(FHttpResponsePtr Response, TFunction<void()> OnProductsFetched);
-
-
-    // Data structure to hold all the products fetched from the Shopify store
     TMap<FString, TSharedPtr<FJsonObject>> AllProducts;
-
-    // Instance of ShopConfigLoader to load config data
-    ShopConfigLoader& ConfigLoader;
-
-    // Flag to check if the products have been fetched
+    ShopConfigLoader* ConfigLoader;
     bool bProductsFetched = false;
 };

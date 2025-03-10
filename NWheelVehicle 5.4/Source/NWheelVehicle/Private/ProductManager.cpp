@@ -1,98 +1,58 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// Copyright VeldboomStudios 2025
 
 #include "ProductManager.h"
-#include "Http.h"
+#include "HttpModule.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Json.h"
 #include "JsonUtilities.h"
+#include "ProductActor.h"
 
+UProductManager* UProductManager::Instance = nullptr;
 
-ProductManager::ProductManager()
-    : ConfigLoader(ShopConfigLoader::Get())
+UProductManager::UProductManager()
 {
-
+    // Constructor logic (empty for now)
 }
 
-void ProductManager::GetAllProducts(TFunction<void()> OnProductsFetched)
+UProductManager::~UProductManager()
 {
-    FString  ApiLink = ConfigLoader.GetAdminApiLink();
-    FString  AccessToken = ConfigLoader.GetAdminAccessToken();
-
-    // UE_LOG(LogTemp, Warning, TEXT("API Link: %s"), *ApiLink);
-
-     // Create the HTTP request to Shopify Admin API to fetch all products
-    FString Endpoint = ApiLink + TEXT("/products.json");
-
-    TSharedRef<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
-    Request->SetURL(Endpoint);
-    Request->SetVerb("GET");
-    Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
-    Request->SetHeader(TEXT("X-Shopify-Access-Token"), AccessToken);
-
-    Request->OnProcessRequestComplete().BindLambda([this, OnProductsFetched](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
-        {
-            if (bWasSuccessful && Response.IsValid())
-            {
-                //UE_LOG(LogTemp, Warning, TEXT("Products Fetched: %s"), *Response->GetContentAsString());
-
-                // Process the response and store the products
-                ProcessProductsResponse(Response, OnProductsFetched);
-            }
-            else
-            {
-                UE_LOG(LogTemp, Error, TEXT("Failed to fetch products from Shopify."));
-            }
-        });
-
-    // Send the request
-    Request->ProcessRequest();
+    // Destructor logic (empty for now)
 }
 
-void ProductManager::ProcessProductsResponse(FHttpResponsePtr Response, TFunction<void()> OnProductsFetched)
+UProductManager* UProductManager::GetProductManagerInstance()
 {
-    FString ResponseBody = Response->GetContentAsString();
-    TSharedPtr<FJsonObject> JsonObject;
-    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ResponseBody);
-
-    if (FJsonSerializer::Deserialize(Reader, JsonObject) && JsonObject.IsValid())
-    {
-        // Check if "products" exists and is an array
-        if (JsonObject->HasTypedField<EJson::Array>(TEXT("products")))
-        {
-            TArray<TSharedPtr<FJsonValue>> ProductsArray = JsonObject->GetArrayField(TEXT("products"));
-
-            for (TSharedPtr<FJsonValue> ProductValue : ProductsArray)
-            {
-                TSharedPtr<FJsonObject> ProductObject = ProductValue->AsObject();
-                FString ProductId = ProductObject->GetStringField(TEXT("id"));
-
-                AllProducts.Add(ProductId, ProductObject);
-            }
-
-            bProductsFetched = true;
-            OnProductsFetched();
-        }
-        else
-        {
-            UE_LOG(LogTemp, Error, TEXT("No 'products' field found or it's null in the response."));
-        }
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("Failed to parse products response."));
-    }
-}
-
-TSharedPtr<FJsonObject> ProductManager::GetProductDetailsById(const FString& ProductId)
-{
-    if (AllProducts.Contains(ProductId))
-    {
-        return AllProducts[ProductId];
-    }
+    // Singleton accessor (empty for now)
     return nullptr;
 }
 
-bool ProductManager::IsProductsFetched() const
+void UProductManager::GetAllProducts(FOnProductsFetched OnProductsFetched)
 {
-    return bProductsFetched;
+    // Fetch products logic (empty for now)
+}
+
+void UProductManager::ProcessProductsResponse(FHttpResponsePtr Response, FOnProductsFetched OnProductsFetched)
+{
+    // Handle HTTP response and process products (empty for now)
+}
+
+FString UProductManager::GetProductDetailsById(const FString& ProductId)
+{
+    // Get product details by ID (empty for now)
+    return FString();
+}
+
+void UProductManager::SetProductDetailsById(AProductActor* ProductActor, const FString& ProductId, FOnProductDetailsFetched OnProductDetailsFetched)
+{
+    // Set product details on actor (empty for now)
+}
+
+void UProductManager::ApplyProductDetailsToActor(AProductActor* ProductActor, TSharedPtr<FJsonObject> ProductData, FOnProductDetailsFetched OnProductDetailsFetched)
+{
+    // Apply data to actor (empty for now)
+}
+
+bool UProductManager::IsProductsFetched() const
+{
+    // Check if products are fetched (empty for now)
+    return false;
 }

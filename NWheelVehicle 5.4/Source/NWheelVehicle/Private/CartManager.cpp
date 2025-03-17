@@ -1,10 +1,8 @@
 #include "CartManager.h"
-#include "Http.h"
 #include "HttpModule.h"
 #include "ShopConfigLoader.h"
 #include "Interfaces/IHttpResponse.h"
-#include "Json.h"
-#include "JsonUtilities.h"
+
 
 
 // Revised Singleton Accessor (Meyers' Singleton)
@@ -23,12 +21,6 @@ UCartManager::UCartManager()
     {
         UE_LOG(LogTemp, Error, TEXT("ConfigLoader is not initialized correctly."));
     }
-}
-
-// Destructor (no need to handle Singleton clean-up as Meyers' Singleton takes care of it)
-UCartManager::~UCartManager()
-{
-    // Optional cleanup if necessary
 }
 
 

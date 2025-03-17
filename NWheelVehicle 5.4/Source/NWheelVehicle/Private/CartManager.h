@@ -6,7 +6,6 @@
 #include "Kismet/BlueprintFunctionLibrary.h" // For Blueprint compatibility
 #include "Delegates/Delegate.h" // Include delegates for callbacks
 #include "Interfaces/IHttpRequest.h" // For IHttpRequest and FHttpRequestPtr
-#include "Http.h" // For HTTP functionality
 #include "Templates/Function.h" // For TFunction
 #include "ShopConfigLoader.h" // For ShopConfigLoader
 #include "CartManager.generated.h"
@@ -22,8 +21,7 @@ DECLARE_DYNAMIC_DELEGATE_OneParam(FOnGetCartContents, TArray<FString>, CartConte
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnProceedToCheckout, FString, CheckoutUrl);
 
 /**
- * @class CartManager
- * @brief Manages interactions with Shopify's Storefront API for cart operations.
+ * @brief Manages interactions with Shopify Storefront API for cart operations.
  */
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class NWHEELVEHICLE_API UCartManager : public UObject // Changed from UBlueprintFunctionLibrary to UObject
@@ -33,7 +31,6 @@ class NWHEELVEHICLE_API UCartManager : public UObject // Changed from UBlueprint
 public:
     // Constructor
     UCartManager();
-    ~UCartManager();
 
     // Singleton instance accessor
     static UCartManager& Get();

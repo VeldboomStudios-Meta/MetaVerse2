@@ -1,8 +1,6 @@
 ﻿#include "ProductManager.h"
 #include "Http.h"
 #include "Interfaces/IHttpResponse.h"
-#include "Json.h"
-#include "JsonUtilities.h"
 #include "ProductActor.h" 
 
 UProductManager* UProductManager::Instance = nullptr;
@@ -15,10 +13,6 @@ UProductManager::UProductManager()
     {
         UE_LOG(LogTemp, Error, TEXT("ConfigLoader is not initialized correctly."));
     }
-}
-
-UProductManager::~UProductManager()
-{
 }
 
 UProductManager* UProductManager::GetProductManagerInstance()
@@ -47,18 +41,18 @@ void UProductManager::GetAllProducts(FOnProductsFetched OnProductsFetched)
     Request->SetHeader(TEXT("X-Shopify-Access-Token"), AccessToken);
 
     // Bind the callback when the request is completed
-    Request->OnProcessRequestComplete().BindLambda([this, OnProductsFetched](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
+    Request->OnProcessRequestComplete().BindLambda([this, OnProductsFetched](FHttpRequestPtr Request, const FHttpResponsePtr& Response, bool bWasSuccessful)
+    {
+        if (bWasSuccessful && Response.IsValid())
         {
-            if (bWasSuccessful && Response.IsValid())
-            {
-                // Process the response and call the callback function
-                ProcessProductsResponse(Response, OnProductsFetched);
-            }
-            else
-            {
-                UE_LOG(LogTemp, Error, TEXT("Failed to fetch products from Shopify."));
-            }
-        });
+            // Process the response and call the callback function
+            ProcessProductsResponse(Response, OnProductsFetched);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("Failed to fetch products from Shopify."));
+        }
+    });
 
     // Send the request
     Request->ProcessRequest();
@@ -79,29 +73,32 @@ FString UProductManager::GetProductDetailsById(const FString& ProductId)
 
     FString ProductDetails;
 
-    Request->OnProcessRequestComplete().BindLambda([this, &ProductDetails](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
+    // Use a lambda to handle the asynchronous response
+    Request->OnProcessRequestComplete().BindLambda([this, &ProductDetails](FHttpRequestPtr Request, const FHttpResponsePtr& Response, bool bWasSuccessful)
+    {
+        if (bWasSuccessful && Response.IsValid())
         {
-            if (bWasSuccessful && Response.IsValid())
-            {
-                // Parse response data
-                TSharedPtr<FJsonObject> JsonObject;
-                TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(Response->GetContentAsString());
+            // Parse response data
+            TSharedPtr<FJsonObject> JsonObject;
+            TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(Response->GetContentAsString());
 
-                if (FJsonSerializer::Deserialize(JsonReader, JsonObject))
-                {
-                    ProductDetails = JsonObject->GetStringField(TEXT("product_name")); // Example field, adjust according to your API response
-                }
-            }
-            else
+            if (FJsonSerializer::Deserialize(JsonReader, JsonObject))
             {
-                UE_LOG(LogTemp, Error, TEXT("Failed to fetch product details from Shopify."));
+                // Example: Adjust according to the actual response data structure
+                ProductDetails = JsonObject->GetStringField(TEXT("product_name"));
             }
-        });
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("Failed to fetch product details from Shopify."));
+        }
+    });
 
-    // Send the request
+    // Send the request asynchronously
     Request->ProcessRequest();
 
-    return ProductDetails;
+    // Ideally, return a callback or use an event system to notify when the data is available
+    return ProductDetails;  // This is still problematic, as the result is asynchronous
 }
 
 void UProductManager::SetProductDetailsById(AProductActor* ProductActor, const FString& ProductId, FOnProductDetailsFetched /*bool*/ OnProductDetailsFetched) // ❌
@@ -121,13 +118,12 @@ void UProductManager::SetProductDetailsById(AProductActor* ProductActor, const F
     }
 }
 
-
 bool UProductManager::IsProductsFetched() const
 {
     return bProductsFetched; // Returns whether the products have been fetched or not
 }
 
-void UProductManager::ProcessProductsResponse(FHttpResponsePtr Response, FOnProductsFetched OnProductsFetched)
+void UProductManager::ProcessProductsResponse(FHttpResponsePtr Response, const FOnProductsFetched& OnProductsFetched)
 {
     TSharedPtr<FJsonObject> JsonObject;
     TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(Response->GetContentAsString());
@@ -150,7 +146,7 @@ void UProductManager::ProcessProductsResponse(FHttpResponsePtr Response, FOnProd
 
         // Mark products as fetched and invoke the callback
         bProductsFetched = true;
-        OnProductsFetched.ExecuteIfBound(); // Call the callback
+         (void)OnProductsFetched.ExecuteIfBound();  // The callback is now passed by reference
     }
     else
     {
@@ -158,7 +154,7 @@ void UProductManager::ProcessProductsResponse(FHttpResponsePtr Response, FOnProd
     }
 }
 
-void UProductManager::ApplyProductDetailsToActor(AProductActor* ProductActor, TSharedPtr<FJsonObject> ProductData, FOnProductDetailsFetched OnProductDetailsFetched)
+void UProductManager::ApplyProductDetailsToActor(AProductActor* ProductActor, const TSharedPtr<FJsonObject>& ProductData, const FOnProductDetailsFetched& OnProductDetailsFetched)
 {
     // Explicitly check for nullptr for ProductActor and ensure ProductData is valid
     if (ProductActor != nullptr && ProductData.IsValid())
@@ -181,3 +177,4 @@ void UProductManager::ApplyProductDetailsToActor(AProductActor* ProductActor, TS
         UE_LOG(LogTemp, Error, TEXT("Invalid ProductActor or ProductData."));
     }
 }
+

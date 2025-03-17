@@ -1,8 +1,6 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
-#include "Interfaces/IHttpResponse.h"
 #include "Http.h"
 #include "ShopConfigLoader.h"
 #include "ProductActor.h"
@@ -21,7 +19,7 @@ class NWHEELVEHICLE_API UProductManager : public UObject
 
 public:
     UProductManager();
-    virtual ~UProductManager();
+   
 
     UFUNCTION(BlueprintCallable, Category = "ProductManager")
     static UProductManager* GetProductManagerInstance();
@@ -41,8 +39,8 @@ public:
 private:
     static UProductManager* Instance;
 
-    void ProcessProductsResponse(FHttpResponsePtr Response, FOnProductsFetched OnProductsFetched);
-    void ApplyProductDetailsToActor(AProductActor* ProductActor, TSharedPtr<FJsonObject> ProductData, FOnProductDetailsFetched OnProductDetailsFetched);
+    void ProcessProductsResponse(FHttpResponsePtr Response, const FOnProductsFetched& OnProductsFetched);
+    static void ApplyProductDetailsToActor(AProductActor* ProductActor, const TSharedPtr<FJsonObject>& ProductData, const FOnProductDetailsFetched& OnProductDetailsFetched);
 
     TMap<FString, TSharedPtr<FJsonObject>> AllProducts;
     ShopConfigLoader* ConfigLoader;

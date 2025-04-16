@@ -2,6 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/WidgetComponent.h"
+
+#include "ProductManager.h" 
+
 #include "ProductActor.generated.h"
 
 UCLASS()
@@ -20,29 +25,31 @@ protected:
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+	
+    //Mesh
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
+	UStaticMeshComponent* ProductMeshComponent;
 
+	// Widget Component
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
+	UWidgetComponent* ProductWidgetComponent;
+
+	
 	// Product properties
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Product Details")
-	FString ProductName;
+	FString ProductId;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Product Details")
+	FString Title;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Product Details")
 	float ProductPrice;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Product Details")
 	FString ProductDescription;
-
-	// General function to set any product property
-	UFUNCTION(BlueprintCallable, Category = "Product Details")
-	void SetProductDetailString(const FString& DetailType, const FString& DetailValue);
-
-	UFUNCTION(BlueprintCallable, Category = "Product Details")
-	void SetProductDetailFloat(const FString& DetailType, float DetailValue);
-
-	// General function to get any product property
-	UFUNCTION(BlueprintCallable, Category = "Product Details")
-	FString GetProductDetail(const FString& DetailType) const;
-
-	// Function to get product price as float
-	UFUNCTION(BlueprintCallable, Category = "Product Details")
-	float GetProductDetailAsFloat(const FString& DetailType) const;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Product Details")
+	TArray<FProductVariant> ProductVariants; // Now matches ProductManager's struct!
+	
 };

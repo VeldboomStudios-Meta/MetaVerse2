@@ -5,20 +5,47 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h" // For Blueprint compatibility
 #include "Delegates/Delegate.h" // Include delegates for callbacks
-#include "Interfaces/IHttpRequest.h" // For IHttpRequest and FHttpRequestPtr
 #include "Templates/Function.h" // For TFunction
 #include "ShopConfigLoader.h" // For ShopConfigLoader
 #include "CartManager.generated.h"
 
+USTRUCT(BlueprintType)
+struct FCartItem
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    FString ProductName;
+
+    UPROPERTY(BlueprintReadOnly)
+    FString VariantName;
+
+    UPROPERTY(BlueprintReadOnly)
+    FString VariantId; // VariantID
+
+    UPROPERTY(BlueprintReadOnly)
+    FString LineId; // Line Item ID
+
+    UPROPERTY(BlueprintReadOnly)
+    int32 Quantity;
+
+    UPROPERTY(BlueprintReadOnly)
+    float Price;
+
+    UPROPERTY(BlueprintReadOnly)
+    FString CurrencyCode;
+};
+
+
 // Custom delegate declarations for Blueprint compatibility
 // These must be declared outside the class scope
-DECLARE_DYNAMIC_DELEGATE(FOnCartCreated);
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnCartCreated, const FString&, CartId, const FString&, CheckoutUrl);
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnItemAdded, bool, bSuccess);
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnItemUpdated, bool, bSuccess);
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnItemRemoved, bool, bSuccess);
-DECLARE_DYNAMIC_DELEGATE_OneParam(FOnCartCleared, bool, bSuccess);
-DECLARE_DYNAMIC_DELEGATE_OneParam(FOnGetCartContents, TArray<FString>, CartContents);
+DECLARE_DYNAMIC_DELEGATE_OneParam(FOnGetCartContents, const TArray<FCartItem>&, CartItems);
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnProceedToCheckout, FString, CheckoutUrl);
+
 
 /**
  * @brief Manages interactions with Shopify Storefront API for cart operations.
@@ -33,107 +60,42 @@ public:
     UCartManager();
 
     // Singleton instance accessor
-    static UCartManager& Get();
-
-    /**
-     * Creates a new cart in Shopify and stores its ID locally.
-     * @param OnCartCreated Delegate executed after the cart is created.
-     */
+    static UCartManager* Get();
+    
     UFUNCTION(BlueprintCallable, Category = "CartManager")
     void CreateShopifyCart(FOnCartCreated OnCartCreated);
-
-    /**
-     * Adds a product variant to the existing cart.
-     * @param VariantId The ID of the product variant to add.
-     * @param Quantity The quantity of the product variant to add.
-     * @param OnItemAdded Delegate executed after the item is added.
-     */
+    
     UFUNCTION(BlueprintCallable, Category = "CartManager")
-    void AddItemToCart(FString VariantId, int32 Quantity, FOnItemAdded OnItemAdded);
-
-    /**
-     * Updates the quantity of an existing item in the cart.
-     * @param LineId The ID of the cart line representing the item.
-     * @param NewQuantity The updated quantity for the item.
-     * @param OnItemUpdated Delegate executed after the item is updated.
-     */
+    void AddItemToCart(FString CartId, FString VariantId, int32 Quantity, FOnItemAdded OnItemAdded);
+    
     UFUNCTION(BlueprintCallable, Category = "CartManager")
-    void UpdateCartItem(FString LineId, int32 NewQuantity, FOnItemUpdated OnItemUpdated);
-
-    /**
-     * Removes an item from the cart.
-     * @param LineId The ID of the cart line to remove.
-     * @param OnItemRemoved Delegate executed after the item is removed.
-     */
+    void UpdateCartItem(FString CartId, FString LineId, int32 NewQuantity, FOnItemUpdated OnItemUpdated);
+    
     UFUNCTION(BlueprintCallable, Category = "CartManager")
-    void RemoveItemFromCart(FString LineId, FOnItemRemoved OnItemRemoved);
-
-    /**
-     * Retrieves the current contents of the cart.
-     * @param OnCartContentLoaded Delegate to return the cart's contents as an array of strings.
-     */
+    void RemoveItemFromCart(FString CartId, FString LineId, FOnItemRemoved OnItemRemoved);
+    
     UFUNCTION(BlueprintCallable, Category = "CartManager")
-    void GetCartContents(FOnGetCartContents OnCartContentLoaded);
-
-    /**
-     * Retrieves the checkout URL for the cart and redirects the user to Shopify's checkout page.
-     * @param OnCheckoutUrlReady Delegate to return the checkout URL as a string.
-     */
-    UFUNCTION(BlueprintCallable, Category = "CartManager")
-    void ProceedToCheckout(FOnProceedToCheckout OnCheckoutUrlReady);
-
-    /**
-     * Clears all items from the cart.
-     * @param OnCartCleared Delegate executed after the cart is cleared.
-     */
-    UFUNCTION(BlueprintCallable, Category = "CartManager")
-    void ClearCart(FOnCartCleared OnCartCleared);
-
-    /**
-     * Checks if the cart is empty.
-     * @return True if the cart is empty, false otherwise.
-     */
-    UFUNCTION(BlueprintCallable, Category = "CartManager")
-    bool IsCartEmpty();
-
-    /**
-     * Retrieves the stored cart ID.
-     * @return The cart ID as a string.
-     */
-    UFUNCTION(BlueprintCallable, Category = "CartManager")
-    FString GetStoredCartId();
-
-    /**
-     * Sets the stored cart ID.
-     * @param CartId The new cart ID to set.
-     */
-    UFUNCTION(BlueprintCallable, Category = "CartManager")
-    void SetStoredCartId(FString CartId);
-
-    /**
-     * Handles errors that occur during API requests.
-     * @param ErrorMessage The error message to log or display.
-     */
-    UFUNCTION(BlueprintCallable, Category = "CartManager")
-    void HandleErrors(FString ErrorMessage);
+    void GetCartContents(FString CartId, FOnGetCartContents OnCartContentLoaded);
 
     UFUNCTION(BlueprintCallable, Category = "CartManager")
     static UCartManager* GetCartManagerInstance();
 
-
-private:
-    // Helper function declarations
-    static FString BuildGraphQLPayload(const FString& Query, TSharedPtr<FJsonObject> Variables);
-    static TSharedRef<IHttpRequest, ESPMode::ThreadSafe> SetupHttpRequest(const FString& ApiLink, const FString& AccessToken, const FString& RequestBody);
-    static TSharedPtr<FJsonObject> ParseGraphQLResponse(const FString& ResponseStr);
-    static void HandleHttpResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful,
-        TFunction<void(TSharedPtr<FJsonObject> DataObject)> OnSuccess,
-        TFunction<void()> OnFailure);
-
-
+    UPROPERTY(BlueprintReadWrite, Category = "CartManager|Stored Data")
+    FString StoredCartId;
     
+    UPROPERTY(BlueprintReadWrite, Category = "CartManager|Stored Data")
+    FString StoredCheckoutUrl;
+private:
+    FOnCartCreated CartCreatedDelegate;
+    FOnItemAdded ItemAddedDelegate;
+    FOnItemUpdated ItemUpdatedDelegate;
+    FOnItemRemoved ItemRemovedDelegate;
+    FOnGetCartContents CartContentsLoadedDelegate;
+    FOnProceedToCheckout CheckoutUrlReadyDelegate;
     
     ShopConfigLoader* ConfigLoader;
-    FString StoredCartId;
+  
+  
+    
     static UCartManager* Instance; // Singleton instance
 };
